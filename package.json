@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "tsx watch src/server.ts"
+    "dev": "tsx watch src/server.ts",
+    "build": "tsup src  --out-dir build",
+    "start": "node build/server.js"
   },
   "keywords": [],
   "author": "",
@@ -29,6 +31,7 @@
     "fastify-multipart": "^5.3.1",
     "fluent-ffmpeg": "^2.1.3",
     "fs-extra": "^11.3.0",
+    "tsup": "^8.4.0",
     "tsx": "^4.19.3"
   }
 }
