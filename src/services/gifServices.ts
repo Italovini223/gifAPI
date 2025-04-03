@@ -6,6 +6,7 @@ import fs from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
 import { promisify } from "util";
+import { BackblazeService } from "./backblazeService";
 
 // Configurar os caminhos do ffmpeg e ffprobe
 ffmpeg.setFfmpegPath(ffmpegPath.path);
@@ -15,6 +16,8 @@ ffmpeg.setFfprobePath(ffprobePath.path);
 const writeFileAsync = promisify(fs.writeFile);
 
 export class GifService {
+  private backblazeService = new BackblazeService();
+
   async generate(video: MultipartFile): Promise<string> {
     return new Promise(async (resolve, reject) => {
       try {
@@ -37,7 +40,7 @@ export class GifService {
         }
 
         // ✅ Executar ffprobe para garantir que o vídeo é válido
-        ffmpeg.ffprobe(videoPath, (err, metadata) => {
+        ffmpeg.ffprobe(videoPath, async (err, metadata) => {
           if (err) {
             console.error("❌ Erro ao analisar o vídeo:", err);
             return reject(new Error("Arquivo de vídeo inválido."));
@@ -50,16 +53,28 @@ export class GifService {
           // ✅ Converter vídeo para GIF
           ffmpeg(videoPath)
             .setStartTime("00:00:00")
-            .setDuration(maxDuration) // Máximo de 6s
+            .setDuration(maxDuration)
             .outputOptions([
               "-vf", "fps=10,scale=480:-1:flags=lanczos",
               "-loop", "0"
             ])
             .toFormat("gif")
             .save(gifPath)
-            .on("end", () => {
+            .on("end", async () => {
               console.log(`✅ GIF gerado: ${gifPath}`);
-              resolve(gifPath);
+
+              // ✅ Upload do GIF para o Backblaze
+              const gifUrl = await this.backblazeService.uploadFile(gifPath);
+              
+              // Excluir arquivos temporários
+              fs.unlinkSync(videoPath);
+              fs.unlinkSync(gifPath);
+
+              if (gifUrl) {
+                resolve(gifUrl);
+              } else {
+                reject(new Error("Erro ao fazer upload do GIF para o Backblaze"));
+              }
             })
             .on("error", (err) => {
               console.error("❌ Erro ao gerar GIF:", err);
