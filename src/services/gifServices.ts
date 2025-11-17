@@ -43,7 +43,6 @@ export class GifService {
         }
 
         // ✅ Executar ffprobe para garantir que o vídeo é válido
-        console.log("🔎 ffprobe iniciando para:", videoPath);
         ffmpeg.ffprobe(videoPath, async (err, metadata) => {
           if (err) {
             console.error("❌ Erro ao analisar o vídeo:", err);
@@ -54,7 +53,6 @@ export class GifService {
           const duration = Number(metadata.format.duration ?? 0);
           let maxDuration = Math.min(isFinite(duration) && duration > 0 ? duration : 6, 6); // fallback para 6s quando não disponível
 
-          console.log("📏 Duração detectada:", duration, "→ Usando:", maxDuration, "segundos");
 
           // ✅ Converter vídeo para GIF
           const command = ffmpeg(videoPath)
@@ -65,20 +63,7 @@ export class GifService {
               "-loop", "0"
             ])
             .toFormat("gif")
-            .on("start", (cmdLine) => {
-              console.log("🚀 ffmpeg iniciado:", cmdLine);
-            })
-            .on("progress", (progress) => {
-              if (progress && typeof progress.percent === 'number') {
-                console.log(`⏳ Progresso: ${progress.percent.toFixed(2)}%`);
-              }
-            })
-            .on("stderr", (line) => {
-              // Em Windows o ffmpeg fala bastante no stderr; útil para diagnosticar codecs
-              console.log("🪵 ffmpeg:", line);
-            })
             .on("end", async () => {
-              console.log(`✅ GIF gerado: ${gifPath}`);
 
               // ✅ Upload do GIF para o Backblaze
               const gifUrl = await this.backblazeService.uploadFile(gifPath, app, empresaId);

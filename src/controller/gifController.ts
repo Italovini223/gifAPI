@@ -12,7 +12,6 @@ export class GifController {
       }
 
       // Consome o multipart inteiro garantindo que o stream do arquivo seja lido
-      console.log("📦 Lendo partes via req.parts()...");
       const parts = req.parts();
       let app: string | undefined;
       let empresaIdRaw: string | undefined;
@@ -25,7 +24,6 @@ export class GifController {
           if (part.fieldname === 'empresa_id') empresaIdRaw = part.value as string;
         } else if (part.type === 'file') {
           if (!videoBuffer) {
-            console.log("📥 Recebendo arquivo:", { fieldname: (part as any).fieldname, filename: (part as any).filename, mimetype: (part as any).mimetype });
             try {
               videoBuffer = await (part as any).toBuffer();
               videoFilename = (part as any).filename;
@@ -59,7 +57,6 @@ export class GifController {
         return reply.status(400).send({ error: "Valor inválido para 'empresa_id'" });
       }
 
-      console.log("📦 Arquivo recebido:", { filename: videoFilename, size: videoBuffer.length });
       const gifUrl = await gifService.generate({ filename: videoFilename, buffer: videoBuffer }, app, empresaId);
 
       return reply.send({ gifUrl });
