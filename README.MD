@@ -60,31 +60,57 @@ Se desejar rodar a API localmente, siga os passos abaixo:
 **URL:** `/gif/generate`  
 **Método:** `POST`  
 **Content-Type:** `multipart/form-data`  
-**Descrição:** Faz upload de um arquivo de vídeo para gerar um GIF.
+**Descrição:** Faz upload de um arquivo de vídeo para gerar um GIF. Agora é obrigatório enviar também os campos `app` e `empresa_id` para definir o diretório dentro do Backblaze.
+
+#### Campos multipart obrigatórios
+| Campo        | Tipo      | Descrição                                                                 |
+|--------------|-----------|---------------------------------------------------------------------------|
+| `video`      | file      | Arquivo de vídeo (mp4, mov, etc.) que será convertido em GIF              |
+| `app`        | string    | Identificador da aplicação (ex: `app_vd`)                                 |
+| `empresa_id` | inteiro   | ID numérico da empresa (ex: `168`)                                        |
+
+O GIF será salvo no Backblaze em:  
+```
+{BACKBLAZE_ROOT_PATH}/{empresa_id}/{app}/{nome_do_arquivo}.gif
+```
+Por padrão `BACKBLAZE_ROOT_PATH` é `nuvempro_static/customer_files` (pode ser alterado via variável de ambiente `BACKBLAZE_ROOT_PATH`).
 
 ### Exemplo de Requisição
 
 Utilize uma ferramenta como [Postman](https://www.postman.com/) ou `curl` para realizar a requisição.
 
-#### Usando `curl`:
+#### Usando `curl` (Windows PowerShell):
+```powershell
+curl -X POST http://localhost:3333/gif/generate `
+   -H "Content-Type: multipart/form-data" `
+   -F "video=@C:/Users/SeuUsuario/Downloads/video_teste.mov" `
+   -F "app=app_sc" `
+   -F "empresa_id=333"
+```
+
+Opcional (macOS/Linux bash):
 ```bash
-curl -X POST https://sua-api-em-deploy.com/gif/generate \
-  -H "Content-Type: multipart/form-data" \
-  -F "file=@caminho/para/seu/video.mp4"
+curl -X POST http://localhost:3333/gif/generate \
+   -H "Content-Type: multipart/form-data" \
+   -F "video=@/caminho/para/video_teste.mov" \
+   -F "app=app_sc" \
+   -F "empresa_id=333"
 ```
 
 #### Usando Postman:
 1. Configure o método como `POST`.
-2. Defina a URL como `https://sua-api-em-deploy.com/gif/generate`.
+2. Defina a URL como `http://localhost:3333/gif/generate`.
 3. Na aba "Body", selecione "form-data".
-4. Adicione uma chave chamada `file` e faça o upload do arquivo de vídeo.
+4. Adicione a chave `video` (tipo File) e faça o upload do vídeo.
+5. Adicione a chave `app` (tipo Text) com o valor da aplicação (ex: `app_vd`).
+6. Adicione a chave `empresa_id` (tipo Text) com o valor numérico da empresa (ex: `168`).
 
 ### Exemplo de Resposta
 
 Em caso de sucesso, a API retornará uma resposta JSON com a URL pública do GIF gerado:
 ```json
 {
-  "gifUrl": "https://sua-download-url.com/file/seu-bucket-name/nuvempro_static/customer_files/999/app_dp/seu-gif-file.gif"
+   "gifUrl": "https://sua-download-url.com/file/seu-bucket-name/nuvempro_static/customer_files/168/app_vd/nome-do-arquivo.gif"
 }
 ```
 
@@ -101,5 +127,6 @@ Em caso de erro, a API retornará uma mensagem de erro apropriada:
 - Certifique-se de que o arquivo de vídeo tenha menos de 50MB.
 - O GIF gerado terá uma duração máxima de 6 segundos.
 - A API utiliza o Backblaze B2 Cloud Storage para armazenar os GIFs.
+- O diretório raiz pode ser alterado via variável de ambiente `BACKBLAZE_ROOT_PATH`.
 
 Para mais informações ou dúvidas, entre em contato com o responsável pela API.

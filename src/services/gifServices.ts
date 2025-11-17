@@ -15,14 +15,16 @@ ffmpeg.setFfprobePath(ffprobePath.path);
 // Converter o fs.writeFile para uma versão async/await
 const writeFileAsync = promisify(fs.writeFile);
 
+type VideoInput = MultipartFile | { filename: string; buffer: Buffer };
+
 export class GifService {
   private backblazeService = new BackblazeService();
 
-  async generate(video: MultipartFile): Promise<string> {
+  async generate(video: VideoInput, app: string, empresaId: bigint | number | string): Promise<string> {
     return new Promise(async (resolve, reject) => {
       try {
         // Criar pasta temporária, se não existir
-        const tmpDir = path.join(__dirname, "../../tmp");
+        const tmpDir = path.join(process.cwd(), "tmp");
         if (!fs.existsSync(tmpDir)) {
           fs.mkdirSync(tmpDir, { recursive: true });
         }
@@ -32,7 +34,8 @@ export class GifService {
         const gifPath = videoPath.replace(/\.[^/.]+$/, ".gif");
 
         // ✅ Salvar o vídeo antes de usá-lo
-        await writeFileAsync(videoPath, await video.toBuffer());
+        const buffer = (video as any).buffer ? (video as any).buffer as Buffer : await (video as MultipartFile).toBuffer();
+        await writeFileAsync(videoPath, buffer);
 
         // ✅ Verificar se o arquivo foi realmente salvo antes de processar
         if (!fs.existsSync(videoPath)) {
@@ -40,6 +43,7 @@ export class GifService {
         }
 
         // ✅ Executar ffprobe para garantir que o vídeo é válido
+        console.log("🔎 ffprobe iniciando para:", videoPath);
         ffmpeg.ffprobe(videoPath, async (err, metadata) => {
           if (err) {
             console.error("❌ Erro ao analisar o vídeo:", err);
@@ -47,11 +51,13 @@ export class GifService {
           }
 
           // Pegar a duração do vídeo
-          const duration = metadata.format.duration || 0;
-          const maxDuration = Math.min(duration, 6); // Máximo de 6 segundos
+          const duration = Number(metadata.format.duration ?? 0);
+          let maxDuration = Math.min(isFinite(duration) && duration > 0 ? duration : 6, 6); // fallback para 6s quando não disponível
+
+          console.log("📏 Duração detectada:", duration, "→ Usando:", maxDuration, "segundos");
 
           // ✅ Converter vídeo para GIF
-          ffmpeg(videoPath)
+          const command = ffmpeg(videoPath)
             .setStartTime("00:00:00")
             .setDuration(maxDuration)
             .outputOptions([
@@ -59,12 +65,23 @@ export class GifService {
               "-loop", "0"
             ])
             .toFormat("gif")
-            .save(gifPath)
+            .on("start", (cmdLine) => {
+              console.log("🚀 ffmpeg iniciado:", cmdLine);
+            })
+            .on("progress", (progress) => {
+              if (progress && typeof progress.percent === 'number') {
+                console.log(`⏳ Progresso: ${progress.percent.toFixed(2)}%`);
+              }
+            })
+            .on("stderr", (line) => {
+              // Em Windows o ffmpeg fala bastante no stderr; útil para diagnosticar codecs
+              console.log("🪵 ffmpeg:", line);
+            })
             .on("end", async () => {
               console.log(`✅ GIF gerado: ${gifPath}`);
 
               // ✅ Upload do GIF para o Backblaze
-              const gifUrl = await this.backblazeService.uploadFile(gifPath);
+              const gifUrl = await this.backblazeService.uploadFile(gifPath, app, empresaId);
               
               // Excluir arquivos temporários
               fs.unlinkSync(videoPath);
@@ -78,8 +95,12 @@ export class GifService {
             })
             .on("error", (err) => {
               console.error("❌ Erro ao gerar GIF:", err);
+              try { if (fs.existsSync(videoPath)) fs.unlinkSync(videoPath); } catch {}
+              try { if (fs.existsSync(gifPath)) fs.unlinkSync(gifPath); } catch {}
               reject(err);
             });
+
+          command.save(gifPath);
         });
 
       } catch (error) {

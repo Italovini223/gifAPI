@@ -13,7 +13,7 @@ const B2_BUCKET_ID = process.env.BACKBLAZE_BUCKET_ID!;
 const B2_BUCKET_NAME = process.env.BACKBLAZE_BUCKET_NAME!;
 const B2_API_URL = process.env.BACKBLAZE_API_URL!;
 const B2_DOWNLOAD_URL = process.env.BACKBLAZE_DOWNLOAD_URL!;
-const FOLDER_PATH = "nuvempro_static/customer_files/999/app_dp";
+const B2_ROOT_PATH = process.env.BACKBLAZE_ROOT_PATH || "nuvempro_static/customer_files"; // raiz configurável
 
 interface AuthResponse {
   apiUrl: string;
@@ -81,7 +81,7 @@ export class BackblazeService {
    * @param filePath Caminho do arquivo no sistema
    * @returns URL pública do arquivo no Backblaze
    */
-  async uploadFile(filePath: string): Promise<string | null> {
+  async uploadFile(filePath: string, app: string, empresaId: string | number | bigint): Promise<string | null> {
     try {
       console.log("🚀 Iniciando upload do arquivo...");
 
@@ -96,7 +96,8 @@ export class BackblazeService {
       const sha1 = crypto.createHash("sha1").update(fileBuffer).digest("hex");
 
       // 🔹 Criar caminho dentro do Backblaze sem usar caminhos absolutos do sistema!
-      const finalFilePath = `${FOLDER_PATH}/${fileName}`.replace(/\\/g, "/");
+      const empresaIdStr = typeof empresaId === 'bigint' ? empresaId.toString() : String(empresaId);
+      const finalFilePath = `${B2_ROOT_PATH}/${empresaIdStr}/${app}/${fileName}`.replace(/\\/g, "/");
 
       console.log(`📂 Enviando para: ${finalFilePath}`);
 

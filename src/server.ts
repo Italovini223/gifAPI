@@ -21,7 +21,7 @@ const start = async () => {
     },
   });
 
-  const tmpDir = path.join(__dirname, "../tmp");
+  const tmpDir = path.join(process.cwd(), "tmp");
   if (!fs.existsSync(tmpDir)) {
     fs.mkdirSync(tmpDir, { recursive: true });
   }
