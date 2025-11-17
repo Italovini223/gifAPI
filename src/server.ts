@@ -21,6 +21,21 @@ const start = async () => {
     },
   });
 
+  // Ajustes de timeout do servidor (não resolvem limites do provedor, mas evitam cortes locais)
+  // 0 = sem timeout para requestTimeout
+  // Use variáveis de ambiente para ajustar em produção se necessário
+  try {
+    const reqTimeout = Number(process.env.REQUEST_TIMEOUT_MS ?? 0);
+    const hdrTimeout = Number(process.env.HEADERS_TIMEOUT_MS ?? 120000); // 120s
+    const kaTimeout = Number(process.env.KEEPALIVE_TIMEOUT_MS ?? 120000); // 120s
+    // @ts-ignore: propriedades válidas no http.Server
+    app.server.requestTimeout = reqTimeout;
+    // @ts-ignore
+    app.server.headersTimeout = hdrTimeout;
+    // @ts-ignore
+    app.server.keepAliveTimeout = kaTimeout;
+  } catch {}
+
   const tmpDir = path.join(process.cwd(), "tmp");
   if (!fs.existsSync(tmpDir)) {
     fs.mkdirSync(tmpDir, { recursive: true });
